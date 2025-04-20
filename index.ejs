@@ -1,0 +1,28 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>BROLY69 - Vitrine</title>
+  <style>
+    body { background-color: #000; color: #FFD700; font-family: sans-serif; text-align: center; }
+    img { width: 300px; border-radius: 10px; margin: 10px 0; }
+    .product { border: 1px solid #FFD700; padding: 15px; margin: 20px auto; width: 90%; max-width: 500px; border-radius: 10px; background: #111; }
+  </style>
+</head>
+<body>
+  <h1>Bienvenue chez Broly, voici nos produits</h1>
+  <% produits.forEach(p => { %>
+    <div class="product">
+      <h2><%= p.name %></h2>
+      <img src="<%= p.media %>" alt="photo">
+      <p><%= p.description %></p>
+      <ul>
+        <% p.prices.forEach(price => { %>
+          <li><%= price.label %>: <%= price.value %>€</li>
+        <% }) %>
+      </ul>
+    </div>
+  <% }) %>
+</body>
+</html>

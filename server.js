@@ -1,64 +1,84 @@
+
 import express from 'express';
 import mongoose from 'mongoose';
-import dotenv from 'dotenv';
-import cors from 'cors';
 import fileUpload from 'express-fileupload';
-import Product from './models/Product.js';
 import path from 'path';
+import session from 'express-session';
 import { fileURLToPath } from 'url';
+import Product from './models/Product.js';
 
-dotenv.config();
-
+const app = express();
+const PORT = process.env.PORT || 10000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/broly69', {
+  useNewUrlParser: true, useUnifiedTopology: true
+}).then(() => console.log('Connecté à MongoDB'))
+  .catch(err => console.error('Erreur MongoDB :', err));
 
-app.use(cors());
-app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(fileUpload());
+app.use(session({ secret: 'broly69', resave: false, saveUninitialized: true }));
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.static(path.join(__dirname, 'public')));
 
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
-.then(() => console.log("Connecté à MongoDB"))
-.catch(err => console.error("Erreur MongoDB :", err));
+// Middleware de sécurité
+function checkAuth(req, res, next) {
+  if (req.session.loggedIn) return next();
+  res.redirect('/admin/login');
+}
 
-app.get('/api/products', async (req, res) => {
+// ROUTES
+app.get('/', async (req, res) => {
   const produits = await Product.find().sort({ createdAt: -1 });
-  res.json(produits);
+  res.render('index', { produits });
 });
 
-app.post('/api/admin/products', async (req, res) => {
-  try {
-    const { name, description, prices, password } = req.body;
+app.get('/admin', checkAuth, async (req, res) => {
+  const produits = await Product.find().sort({ createdAt: -1 });
+  res.render('admin', { produits });
+});
 
-    if (password !== process.env.ADMIN_PASSWORD) {
-      return res.status(401).json({ error: "Mot de passe invalide" });
-    }
+app.get('/admin/login', (req, res) => {
+  res.render('login');
+});
 
-    const parsedPrices = JSON.parse(prices || "[]");
-    let media = '';
-
-    if (req.files?.media) {
-      const file = req.files.media;
-      const filePath = path.join(__dirname, 'uploads', `${Date.now()}_${file.name}`);
-      await file.mv(filePath);
-      media = '/uploads/' + path.basename(filePath);
-    }
-
-    const nouveauProduit = new Product({ name, description, prices: parsedPrices, media });
-    await nouveauProduit.save();
-    res.json(nouveauProduit);
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
+app.post('/admin/login', (req, res) => {
+  const { password } = req.body;
+  if (password === 'broly69') {
+    req.session.loggedIn = true;
+    res.redirect('/admin');
+  } else {
+    res.render('login', { error: 'Mot de passe incorrect' });
   }
+});
+
+app.post('/admin/add', checkAuth, async (req, res) => {
+  const { name, description, prices } = req.body;
+  let media = '';
+  if (req.files && req.files.media) {
+    const file = req.files.media;
+    const fileName = Date.now() + '_' + file.name;
+    const filePath = path.join(__dirname, 'uploads', fileName);
+    await file.mv(filePath);
+    media = '/uploads/' + fileName;
+  }
+
+  const priceArray = prices.split('\n').map(line => {
+    const [label, value] = line.split(':');
+    return { label: label.trim(), value: parseFloat(value) };
+  });
+
+  await Product.create({ name, description, media, prices: priceArray });
+  res.redirect('/admin');
+});
+
+app.post('/admin/delete/:id', checkAuth, async (req, res) => {
+  await Product.findByIdAndDelete(req.params.id);
+  res.redirect('/admin');
 });
 
 app.listen(PORT, () => {

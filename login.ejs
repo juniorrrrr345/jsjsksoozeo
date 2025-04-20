@@ -1,0 +1,16 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Connexion Admin</title>
+</head>
+<body>
+  <h1>Connexion Admin</h1>
+  <% if (typeof error !== 'undefined') { %><p style="color:red;"><%= error %></p><% } %>
+  <form method="POST" action="/admin/login">
+    <input name="password" type="password" placeholder="Mot de passe">
+    <button type="submit">Se connecter</button>
+  </form>
+</body>
+</html>
